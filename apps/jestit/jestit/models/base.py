@@ -44,7 +44,7 @@ class JestitBase:
         print(request.DATA.toJSON(as_string=True))
         graph = request.DATA.get("graph", "list")
         serializer = GraphSerializer(queryset, graph=graph, many=True)
-        return JsonResponse(serializer.serialize(), safe=False)
+        return serializer.to_response(request)
 
     @classmethod
     def on_rest_list_filter(cls, request, queryset):
@@ -78,7 +78,7 @@ class JestitBase:
         """
         graph = request.GET.get("graph", "default")
         serializer = GraphSerializer(self, graph=graph)
-        return JsonResponse(serializer.serialize(), safe=False)
+        return serializer.to_response(request)
 
     def on_rest_save(self, request):
         """
