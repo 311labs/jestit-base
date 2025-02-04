@@ -1,0 +1,16 @@
+[project]
+name = "jestit-base"
+version = "0.1.0"
+description = ""
+authors = [{ name = "Ian Starnes", email = "ian@311labs.com" }]
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+dependencies = ["django (>=5.1.5,<6.0.0)", "pyobjict (>=1.1.12,<2.0.0)"]
+
+[tool.poetry]
+package-mode = false
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
