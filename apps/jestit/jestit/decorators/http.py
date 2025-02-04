@@ -1,14 +1,16 @@
 import sys
 import traceback
-import logging
 from jestit.helpers.settings import settings
 from jestit.helpers import modules as jm
+from jestit.helpers import logit
 import jestit.errors
 from django.urls import path, re_path
 from django.http import JsonResponse
 from functools import wraps
+from jestit.helpers.request import parse_request_data
 
-logger = logging.getLogger(__name__)
+logger = logit.get_logger("jestit", "jestit.log")
+logger.info("created")
 
 # Global registry for REST routes
 REGISTERED_URLS = {}
@@ -22,6 +24,8 @@ def dispatcher(request, *args, **kwargs):
     Dispatches incoming requests to the appropriate registered URL method.
     """
     key = kwargs.pop('__jestit_key__', None)
+    request.DATA = parse_request_data(request)
+    logger.info(request.DATA)
     if key in URLPATTERN_METHODS:
         return dispatch_error_handler(URLPATTERN_METHODS[key])(request, *args, **kwargs)
     return JsonResponse({"error": "Endpoint not found", "code": 404}, status=404)

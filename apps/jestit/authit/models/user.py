@@ -19,8 +19,8 @@ class User(AbstractBaseUser):
     # JSON-based permissions field
     permissions = models.JSONField(default=dict, blank=True)
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
+    # JSON-based permissions field
+    metadata = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.email

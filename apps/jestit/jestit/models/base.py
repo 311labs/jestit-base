@@ -1,6 +1,5 @@
 from django.http import JsonResponse
 from jestit.serializers.models import GraphSerializer
-from jestit.helpers.request import parse_request_data
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
@@ -13,7 +12,6 @@ class JestitBase:
         """
         Handles REST requests dynamically based on HTTP method.
         """
-        request.DATA = parse_request_data(request)
         if pk:
             try:
                 instance = cls.objects.get(pk=pk)

@@ -8,7 +8,7 @@ def configure_paths(base_dir, depth=2):
     Dynamically configure paths based on the provided BASE_DIR.
     Injects computed paths into the global namespace.
     """
-    global HOSTNAME, PROJECT_ROOT, VAR_ROOT, BIN_ROOT, LOG_ROOT
+    global HOSTNAME, PROJECT_ROOT, VAR_ROOT, BIN_ROOT, LOG_ROOT, CONFIG_ROOT
     global MEDIA_ROOT, MEDIA_URL, STATIC_ROOT, SITE_STATIC_ROOT, STATIC_DATA_ROOT
     global STATIC_URL, STATIC_URL_SECURE, APPS_ROOT, APPS_CONFIG_FILE, STATICFILES_DIRS
 
@@ -21,6 +21,7 @@ def configure_paths(base_dir, depth=2):
     VAR_ROOT = PROJECT_ROOT / "var"
     BIN_ROOT = PROJECT_ROOT / "bin"
     APPS_ROOT = PROJECT_ROOT / "apps"
+    CONFIG_ROOT = PROJECT_ROOT / "config"
     APPS_CONFIG_FILE = APPS_ROOT / "apps.json"
     LOG_ROOT = VAR_ROOT / "logs"
 

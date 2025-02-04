@@ -1,9 +1,12 @@
-import json
-from django.core.serializers.json import DjangoJSONEncoder
-from django.forms.models import model_to_dict
+import ujson
 from django.db.models import ForeignKey, OneToOneField
 from django.db.models.query import QuerySet
 from django.http import HttpResponse
+from datetime import datetime
+
+from jestit.helpers import logit
+
+logger = logit.get_logger("debug", "debug.log")
 
 class GraphSerializer:
     """
@@ -33,18 +36,24 @@ class GraphSerializer:
         Serializes a single model instance or a QuerySet.
         """
         if self.many:
-            return [self._serialize_instance(obj) for obj in self.instance]
-        return self._serialize_instance(self.instance)
+            out = [self._serialize_instance(obj) for obj in self.instance]
+            return dict(data=out, status=True, size=len(out), count=self.qset.count())
+        return dict(data=self._serialize_instance(self.instance), status=True)
 
     def _serialize_instance(self, obj):
         """
         Serializes a single model instance based on `RestMeta.GRAPHS`.
         """
         if not hasattr(obj, "RestMeta") or not hasattr(obj.RestMeta, "GRAPHS"):
-            return model_to_dict(obj)  # Default to `model_to_dict()` if no graph exists
+            return self._model_to_dict_custom(obj, fields=[field.name for field in obj._meta.fields])
 
-        graph_config = obj.RestMeta.GRAPHS.get(self.graph, {})
-        data = model_to_dict(obj)  # Convert normal fields
+        graph_config = obj.RestMeta.GRAPHS.get(self.graph)
+
+        # If graph is not defined or None, assume all fields should be included
+        if graph_config is None:
+            return self._model_to_dict_custom(obj, fields=[field.name for field in obj._meta.fields])
+
+        data = self._model_to_dict_custom(obj)  # Convert normal fields
 
         # Process extra fields (methods, metadata, etc.)
         extra_fields = graph_config.get("extra", [])
@@ -72,9 +81,33 @@ class GraphSerializer:
 
         return data
 
+    def _model_to_dict_custom(self, obj, fields=None):
+        """
+        Custom serialization method for Django model instances.
+        """
+        data = {}
+        for field in obj._meta.fields:
+            logger.info(field)
+            if fields and field.name not in fields:
+                continue
+
+            field_value = getattr(obj, field.name)
+
+            # Handle DateTimeField serialization to epoch
+            if isinstance(field_value, datetime):
+                data[field.name] = int(field_value.timestamp())
+            else:
+                data[field.name] = field_value
+        logger.info(data)
+        return data
+
     def to_json(self):
         """Returns JSON output of the serialized data."""
-        return json.dumps(self.serialize(), cls=DjangoJSONEncoder, indent=4)
+        dd = self.serialize()
+        logger.info(dd)
+        out = ujson.dumps(dd)
+        logger.info("RAW", out)
+        return out
 
     def to_response(self, request):
         """

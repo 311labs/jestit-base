@@ -1,4 +1,4 @@
-import json
+import ujson
 from objict import objict
 
 def parse_request_data(request):
@@ -18,10 +18,10 @@ def parse_request_data(request):
     if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
         if request.content_type == "application/json":
             try:
-                json_data = json.loads(request.body.decode("utf-8"))
+                json_data = ujson.loads(request.body.decode("utf-8"))
                 if isinstance(json_data, dict):  # Ensure it's a dictionary
                     data.update(json_data)
-            except (json.JSONDecodeError, UnicodeDecodeError):
+            except Exception:
                 pass  # Ignore if body isn't valid JSON
 
         # Handle Form Data (POST, PUT, PATCH, DELETE)

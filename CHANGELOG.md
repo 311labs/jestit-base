@@ -1,5 +1,13 @@
 
 ## v0.1.0 - February 03, 2025
+## v0.1.0 - February 04, 2025
+
+  added testit for automated testing is now working
+  fixed rest serializing using json, and simple serialization
+  fixed misc bugs in logging and serilizer
+  added example unit tests
+
+
 ## v0.1.0 - February 03, 2025
 
  added: test running framework and logging

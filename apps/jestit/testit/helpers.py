@@ -10,8 +10,12 @@ TEST_RUN = objict(
     tests=objict(active_test=None),
     results=objict())
 STOP_ON_FAIL = True
-VERBOSE = True
+VERBOSE = False
 INDENT = "    "
+
+
+class TestitAbort(Exception):
+    pass
 
 # Test Decorator
 def unit_test(name):
@@ -46,11 +50,10 @@ def unit_test(name):
 
                 # Print failure message
                 logit.color_print("FAILED", logit.ConsoleLogger.RED, end="\n")
-                if VERBOSE:
-                    logit.color_print(error, logit.ConsoleLogger.PINK)
+                logit.color_print(f"{INDENT}{INDENT}{error}", logit.ConsoleLogger.PINK)
 
                 if STOP_ON_FAIL:
-                    raise TestStopped()
+                    raise TestitAbort()
 
             except Exception as error:
                 TEST_RUN.failed += 1
@@ -61,7 +64,7 @@ def unit_test(name):
                 if VERBOSE:
                     logit.color_print(traceback.format_exc(), logit.ConsoleLogger.PINK)
                 if STOP_ON_FAIL:
-                    raise TestStopped()
+                    raise TestitAbort()
             return False
         return wrapper
     return decorator

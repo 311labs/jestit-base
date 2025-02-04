@@ -1,0 +1,6 @@
+#!/bin/bash
+
+HOST=$(grep 'host' ./config/dev_server.conf | cut -d '=' -f2)
+PORT=$(grep 'port' ./config/dev_server.conf | cut -d '=' -f2)
+
+./bin/manage.py runserver $HOST:$PORT

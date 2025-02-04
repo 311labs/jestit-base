@@ -2,17 +2,36 @@ import os
 import sys
 import time
 import traceback
+import inspect
 import argparse
 from importlib import import_module
 
 # Import logging and helper modules
 from jestit.helpers import paths
 paths.configure_paths(__file__, 2)
-TEST_ROOT = paths.APPS_ROOT / "tests"
-# from test import helpers  # noqa: E402
+
 from jestit.helpers import logit
 from testit import helpers
 
+TEST_ROOT = paths.APPS_ROOT / "tests"
+
+def get_host():
+    """Extract host and port from dev_server.conf."""
+    host = "127.0.0.1"
+    port = 8001
+    try:
+        config_path = paths.CONFIG_ROOT / "dev_server.conf"
+        with open(config_path, 'r') as file:
+            for line in file:
+                if line.startswith("host"):
+                    host = line.split('=')[1].strip()
+                elif line.startswith("port"):
+                    port = line.split('=')[1].strip()
+    except FileNotFoundError:
+        print("Configuration file not found.")
+    except Exception as e:
+        print(f"Error reading configuration: {e}")
+    return f"http://{host}:{port}"
 
 def setup_parser():
     """Setup command-line arguments for the test runner."""
@@ -40,7 +59,7 @@ def setup_parser():
                         help="Stop on errors")
     parser.add_argument("-e", "--errors", action="store_true",
                         help="Show errors")
-    parser.add_argument("--host", type=str, default="http://localhost:8001/",
+    parser.add_argument("--host", type=str, default=get_host(),
                         help="Specify host for API tests")
     parser.add_argument("--setup", action="store_true",
                         help="Run setup before executing tests")
@@ -51,8 +70,7 @@ def setup_parser():
 def run_test(opts, module, func_name, module_name, test_name):
     """Run a specific test function inside a module."""
     test_key = f"{module_name}.{test_name}.{func_name}"
-    logit.color_print(f"\nRUNNING TEST: {test_key}", logit.ConsoleLogger.BLUE)
-
+    helpers.VERBOSE = opts.verbose
     helpers.TEST_RUN.tests.active_test = test_key.replace(".", ":")
     started = time.time()
 
@@ -64,8 +82,6 @@ def run_test(opts, module, func_name, module_name, test_name):
         if opts.stop:
             sys.exit(1)
 
-    duration = time.time() - started
-    print(f"{helpers.INDENT}---------\n{helpers.INDENT}run time: {duration:.2f}s")
 
 
 def import_module_for_testing(module_name, test_name):
@@ -81,15 +97,31 @@ def import_module_for_testing(module_name, test_name):
 
 
 def run_module_tests(opts, module_name, test_name):
-    """Run all test functions in a specific test module."""
+    """Run all test functions in a specific test module in the order they appear."""
     module = import_module_for_testing(module_name, test_name)
     if not module:
         return
 
+    test_key = f"{module_name}.{test_name}"
+    logit.color_print(f"\nRUNNING TEST: {test_key}", logit.ConsoleLogger.BLUE)
+    started = time.time()
     prefix = "test_" if not opts.quick else "quick_"
-    for func_name in dir(module):
-        if func_name.startswith(prefix) and callable(getattr(module, func_name, None)):
+
+    # Get all functions in the module
+    functions = inspect.getmembers(module, inspect.isfunction)
+
+    # Preserve definition order by using inspect.getsourcelines()
+    functions = sorted(
+        functions,
+        key=lambda func: inspect.getsourcelines(func[1])[1]  # Sort by line number
+    )
+
+    for func_name, func in functions:
+        if func_name.startswith(prefix):
             run_test(opts, module, func_name, module_name, test_name)
+
+    duration = time.time() - started
+    print(f"{helpers.INDENT}---------\n{helpers.INDENT}run time: {duration:.2f}s")
 
 
 def run_tests_for_module(opts, module_name):
@@ -147,9 +179,9 @@ def main(opts):
     print("\n" + "=" * 80)
 
     logit.color_print(f"TOTAL RUN: {helpers.TEST_RUN.total}\t", logit.ConsoleLogger.YELLOW)
-    logit.color_print(f"TOTAL PASSED: {helpers.TEST_RUN.passed}\n", logit.ConsoleLogger.GREEN)
+    logit.color_print(f"TOTAL PASSED: {helpers.TEST_RUN.passed}", logit.ConsoleLogger.GREEN)
     if helpers.TEST_RUN.failed > 0:
-        logit.color_print(f"TOTAL FAILED: {helpers.TEST_RUN.failed}\n", logit.ConsoleLogger.RED)
+        logit.color_print(f"TOTAL FAILED: {helpers.TEST_RUN.failed}", logit.ConsoleLogger.RED)
 
     print("=" * 80)
 

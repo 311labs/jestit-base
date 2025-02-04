@@ -65,7 +65,7 @@ class LogManager:
             cls._instance.lock = ThreadSafeLock()
         return cls._instance
 
-    def get_logger(self, name: str, filename: Optional[str] = None, debug: bool = False) -> logging.Logger:
+    def get_logger(self, name, filename=None, debug=False):
         """Retrieve or create a logger."""
         with self.lock:
             if name in self.loggers:
@@ -86,8 +86,8 @@ class LogManager:
             if self.master_logger:
                 logger.addHandler(logging.StreamHandler(sys.stdout))
 
-            self.loggers[name] = logger
-            return logger
+            self.loggers[name] = Logger(name, filename, logger)
+            return self.loggers[name]
 
     def set_master_logger(self, logger: logging.Logger):
         """Assign master logger for global logging."""
@@ -100,26 +100,38 @@ class LogManager:
 
 # Logger Wrapper
 class Logger:
-    def __init__(self, name: str, filename: Optional[str] = None, debug: bool = False):
-        self.logger = LogManager().get_logger(name, filename, debug)
+    def __init__(self, name, filename, logger):
+        self.name = name
+        self.filename = filename
+        self.logger = logger
+
+    def _build_log(self, *args):
+        output = []
+        for arg in args:
+            if isinstance(arg, dict):
+                output.append("")
+                output.append(PrettyLogger.pretty_format(arg))
+            else:
+                output.append(str(arg))
+        return "\n".join(output)
 
     def info(self, *args):
-        self.logger.info(" ".join(map(str, args)))
+        self.logger.info(self._build_log(*args))
 
     def debug(self, *args):
-        self.logger.debug(" ".join(map(str, args)))
+        self.logger.debug(self._build_log(*args))
 
     def warning(self, *args):
-        self.logger.warning(" ".join(map(str, args)))
+        self.logger.warning(self._build_log(*args))
 
     def error(self, *args):
-        self.logger.error(" ".join(map(str, args)))
+        self.logger.error(self._build_log(*args))
 
     def critical(self, *args):
-        self.logger.critical(" ".join(map(str, args)))
+        self.logger.critical(self._build_log(*args))
 
     def exception(self, *args):
-        self.logger.exception(" ".join(map(str, args)))
+        self.logger.exception(self._build_log(*args))
 
 
 # Log Formatting with Colors
