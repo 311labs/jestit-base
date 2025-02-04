@@ -53,3 +53,11 @@ def load_apps():
                 APP_FOLDERS.append(str(item))
                 sys.path.append(str(item))
     return APP_FOLDERS
+
+
+def init_django():
+    import django
+    import os
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project')
+    load_apps()
+    django.setup()
