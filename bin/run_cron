@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+import paths
+import os
+import django
+
+# this must run before we import any django modules
+paths.load_apps()
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project')
+
+django.setup()
+
+from jestit.helpers import cron
+
+if __name__ == "__main__":
+    cron.run_now()

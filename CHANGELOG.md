@@ -2,6 +2,11 @@
 ## v0.1.0 - February 03, 2025
 ## v0.1.0 - February 05, 2025
 
+ added support for running functions via cron
+
+
+## v0.1.0 - February 05, 2025
+
  added better serialization of json fields, more tests
 
 
