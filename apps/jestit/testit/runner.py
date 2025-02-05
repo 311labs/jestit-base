@@ -12,6 +12,7 @@ paths.configure_paths(__file__, 2)
 
 from jestit.helpers import logit
 from testit import helpers
+import testit.client
 
 TEST_ROOT = paths.APPS_ROOT / "tests"
 
@@ -72,8 +73,6 @@ def run_test(opts, module, func_name, module_name, test_name):
     test_key = f"{module_name}.{test_name}.{func_name}"
     helpers.VERBOSE = opts.verbose
     helpers.TEST_RUN.tests.active_test = test_key.replace(".", ":")
-    started = time.time()
-
     try:
         getattr(module, func_name)(opts)
     except Exception as err:
@@ -102,6 +101,7 @@ def run_module_tests(opts, module_name, test_name):
     if not module:
         return
 
+    opts.client = testit.client.RestClient(opts.host, logger=logit.get_logger("testit", "testit.log"))
     test_key = f"{module_name}.{test_name}"
     logit.color_print(f"\nRUNNING TEST: {test_key}", logit.ConsoleLogger.BLUE)
     started = time.time()

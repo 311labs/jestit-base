@@ -1,6 +1,7 @@
 {
     "installed": [
         "jestit",
+        "authit",
         "example",
         "django.contrib.humanize",
         "django.contrib.auth",

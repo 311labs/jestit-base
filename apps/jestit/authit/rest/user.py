@@ -1,11 +1,27 @@
-from jestit.decorators import http as jd
+from jestit import decorators as jd
+from authit.utils.jwtoken import JWToken
 from django.http import JsonResponse
+from authit.models.user import User
+import datetime
 
-@jd.GET("hell")
-def hello_world(request):
-    return JsonResponse(dict(data="hello back"))
+@jd.URL('user')
+@jd.URL('user/<int:pk>')
+def on_user(request, pk=None):
+    return User.on_rest_request(request, pk)
 
 
-@jd.GET("hello2")
-def hello_world2(request):
-    return JsonResponse(dict(data="good bye"))
+@jd.GET("login")
+@jd.requires_params(["username", "password"])
+def on_user_login(request):
+    username = request.DATA.username
+    password = request.DATA.password
+    user = User.objects.filter(username=username.lower().strip()).last()
+    if user is None:
+        return JsonResponse(dict(status=False, error="Invalid username or password", code=403))
+    if not user.check_password(password):
+        # Authentication successful
+        return JsonResponse(dict(status=False, error="Invalid username or password", code=401))
+    user.last_login = datetime.datetime.utcnow()
+    user.save()
+    token_package = JWToken(user.get_auth_key()).create(uid=user.id)
+    return JsonResponse(dict(status=True, data=token_package))

@@ -16,6 +16,28 @@ class RestClient:
         """
         self.host = host if host[-1] == "/" else f"{host}/"
         self.logger = logger
+        self.access_token = None
+        self.is_authenticated = False
+        self.bearer = "bearer"
+        self.token = None
+
+    def login(self, username, password):
+        self.logout()
+        resp = self.post("/api/authit/login", dict(username=username, password=password))
+        if resp.response.data and resp.response.data.access_token:
+            self.is_authenticated = True
+            self.token = resp.response.data.access_token
+        return self.is_authenticated
+
+    def logout(self):
+        self.is_authenticated = False
+        self.bearer = "bearer"
+        self.token = None
+
+    def get_headers(self):
+        if self.is_authenticated:
+            return dict(Authorization=f"{self.bearer} {self.token}")
+        return {}
 
     def _make_request(self, method, path, **kwargs):
         """
@@ -30,10 +52,13 @@ class RestClient:
             dict: A dictionary containing the response data and status code. If an error occurs,
                   returns a dictionary with an error message instead.
         """
+        if path[0] == "/":
+            path = path[1:]
         url = f"{self.host}{path}"
-        response = requests.request(method, url, **kwargs)
+        headers = self.get_headers()
+        response = requests.request(method, url, headers=headers, **kwargs)
         if self.logger:
-            self.logger.info("REQUEST", f"{method}:{url}")
+            self.logger.info("REQUEST", f"{method}:{url}", headers)
             self.logger.info(kwargs.get("json", ""))
         try:
             data = objict.fromdict(response.json()) if response.content else None

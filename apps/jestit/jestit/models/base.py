@@ -7,6 +7,38 @@ class JestitBase:
     """
     Base model class for REST operations with GraphSerializer integration.
     """
+
+    @classmethod
+    def rest_check_permission(cls, request, perms):
+        """
+        Check if request user has one of the required permissions.
+        """
+        if perms is None or len(perms) == 0:
+            return True
+        if request.user is None or not request.user.is_authenticated:
+            return False
+        return request.user.has_permission(perms)
+
+    @classmethod
+    def get_rest_meta_prop(cls, name, default=None):
+        if getattr(cls, "RestMeta", None) is None:
+            return default
+        if isinstance(name, list):
+            for n in name:
+                res = getattr(cls.RestMeta, n, None)
+                if res is not None:
+                    return res
+            return default
+        return getattr(cls.RestMeta, name, default)
+
+    @classmethod
+    def rest_error_response(cls, request, status=500, **kwargs):
+        payload = dict(kwargs)
+        payload["is_authenticated"] = request.user.is_authenticated
+        if "code" not in payload:
+            payload["code"] = status
+        return JsonResponse(payload, status=status)
+
     @classmethod
     def on_rest_request(cls, request, pk=None):
         """
@@ -16,20 +48,35 @@ class JestitBase:
             try:
                 instance = cls.objects.get(pk=pk)
             except ObjectDoesNotExist:
-                return JsonResponse({"error": "Instance not found", "code": "not_found"}, status=404)
+                return cls.rest_error_response(request, 404, error=f"{cls.__name__} not found")
 
             if request.method == 'GET':
-                return instance.on_rest_get(request)
+                if cls.rest_check_permission(request, cls.get_rest_meta_prop("VIEW_PERMS", [])):
+                    return instance.on_rest_get(request)
+                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+
             elif request.method in ['POST', 'PUT']:
-                return instance.on_rest_save(request)
+                if cls.rest_check_permission(request, cls.get_rest_meta_prop(["SAVE_PERMS", "VIEW_PERMS"], [])):
+                    return instance.on_rest_save(request)
+                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+
             elif request.method == 'DELETE':
-                return instance.on_rest_delete(request)
+                if not cls.get_rest_meta_prop("CAN_DELETE", False):
+                    return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+                if cls.rest_check_permission(request, cls.get_rest_meta_prop(["DELETE_PERMS", "SAVE_PERMS", "VIEW_PERMS"], [])):
+                    return instance.on_rest_delete(request)
+                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
         else:
             if request.method == 'GET':
-                return cls.on_rest_list(request)
+                if cls.rest_check_permission(request, cls.get_rest_meta_prop("VIEW_PERMS", [])):
+                    return cls.on_rest_list(request)
+                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
             elif request.method in ['POST', 'PUT']:
-                instance = cls()
-                return instance.on_rest_save(request)
+                if cls.rest_check_permission(request, cls.get_rest_meta_prop(["SAVE_PERMS", "VIEW_PERMS"], [])):
+                    instance = cls()
+                    return instance.on_rest_save(request)
+                return cls.rest_error_response(request, 403, error=f"CREATE permission denied: {cls.__name__}")
+        return cls.rest_error_response(request, 500, error=f"{cls.__name__} not found")
 
     @classmethod
     def on_rest_list(cls, request):
@@ -99,8 +146,7 @@ class JestitBase:
                         continue  # Skip invalid related instances
                 else:
                     setattr(self, field_name, field_value)
-        with transaction.atomic():
-            self.save()
+        self.atomic_save()
         return self.on_rest_get(request)
 
     def on_rest_delete(self, request):
@@ -113,3 +159,7 @@ class JestitBase:
             return JsonResponse({"status": "deleted"}, status=204)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+
+    def atomic_save(self):
+        with transaction.atomic():
+            self.save()

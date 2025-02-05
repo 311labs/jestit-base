@@ -53,6 +53,10 @@ def get_root_module(func):
     if not hasattr(func, "__module__"):
         return None  # Not a valid function or method
 
+    # Fully unwrap to get the original function
+    while hasattr(func, "__wrapped__"):
+        func = func.__wrapped__
+
     module_name = func.__module__  # Get the module where the function is defined
 
     if module_name not in sys.modules:

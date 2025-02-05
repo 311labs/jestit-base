@@ -2,6 +2,12 @@
 ## v0.1.0 - February 03, 2025
 ## v0.1.0 - February 04, 2025
 
+  added users and groups
+  added jwt login
+
+
+## v0.1.0 - February 04, 2025
+
   added testit for automated testing is now working
   fixed rest serializing using json, and simple serialization
   fixed misc bugs in logging and serilizer
