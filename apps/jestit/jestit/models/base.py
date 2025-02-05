@@ -2,6 +2,11 @@ from django.http import JsonResponse
 from jestit.serializers.models import GraphSerializer
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+import objict
+from jestit.helpers import logit
+
+logger = logit.get_logger("debug", "debug.log")
+
 
 class JestitBase:
     """
@@ -144,6 +149,13 @@ class JestitBase:
                         setattr(self, field_name, related_instance)
                     except related_model.DoesNotExist:
                         continue  # Skip invalid related instances
+                elif field.get_internal_type() == "JSONField":
+                    existing_value = getattr(self, field_name, {})
+                    logger.info("JSONField", existing_value, "New Value", field_value)
+                    if isinstance(field_value, dict) and isinstance(existing_value, dict):
+                        merged_value = objict.merge_dicts(existing_value, field_value)
+                        logger.info("merged", merged_value)
+                        setattr(self, field_name, merged_value)
                 else:
                     setattr(self, field_name, field_value)
         self.atomic_save()

@@ -20,6 +20,9 @@ class Note(dm.Model, JestitBase):
     description = dm.TextField(default=None)
     password = dm.TextField(default="this is hidden")
 
+    # JSON-based metadata field
+    metadata = dm.JSONField(default=dict, blank=True)
+
     class RestMeta:
         NO_SHOW_FIELDS = ["password"]
         VIEW_PERMS = ["view_notes", "save_notes"]

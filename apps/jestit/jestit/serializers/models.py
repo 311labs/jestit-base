@@ -6,7 +6,7 @@ from datetime import datetime
 
 from jestit.helpers import logit
 
-logger = logit.get_logger("debug", "debug.log")
+logger = logit.get_logger("serializer", "serializer.log")
 
 class GraphSerializer:
     """

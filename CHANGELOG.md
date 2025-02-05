@@ -1,5 +1,10 @@
 
 ## v0.1.0 - February 03, 2025
+## v0.1.0 - February 05, 2025
+
+ added better serialization of json fields, more tests
+
+
 ## v0.1.0 - February 04, 2025
 
   added users and groups

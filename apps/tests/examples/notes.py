@@ -48,6 +48,24 @@ def test_update_note(opts):
     assert resp.response.data.name == new_name
 
 
+@th.unit_test("update_note_metadata")
+def test_update_metadata(opts):
+    assert opts.client.is_authenticated, "client not authenticated"
+    resp = opts.client.post(f"/api/example/note/{opts.note_pk}", dict(metadata=dict(key1="hello", key2="world")))
+    assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
+    assert resp.response.data.id == opts.note_pk
+    assert resp.response.data.metadata == {"key1":"hello", "key2":"world"}
+
+
+@th.unit_test("remove_note_metadata")
+def test_remove_metadata(opts):
+    assert opts.client.is_authenticated, "client not authenticated"
+    resp = opts.client.post(f"/api/example/note/{opts.note_pk}", dict(metadata=dict(key1=None)))
+    assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
+    assert resp.response.data.id == opts.note_pk
+    assert resp.response.data.metadata == {"key2":"world"}, f"metadata not the same: {resp.response.data.metadata}"
+
+
 @th.unit_test("list_notes")
 def test_list_notes(opts):
     resp = opts.client.get("/api/example/note", params=dict(id=opts.note_pk))
