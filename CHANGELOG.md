@@ -2,6 +2,11 @@
 ## v0.1.0 - February 03, 2025
 ## v0.1.0 - February 05, 2025
 
+  added group/membership with proper permission controls via rest apis
+
+
+## v0.1.0 - February 05, 2025
+
  added more security around permissions
 
 

@@ -9,6 +9,7 @@ from django.urls import path, re_path
 from django.http import JsonResponse
 from functools import wraps
 from jestit.helpers.request import parse_request_data
+from jestit.helpers import modules
 
 logger = logit.get_logger("jestit", "jestit.log")
 logger.info("created")
@@ -27,6 +28,8 @@ def dispatcher(request, *args, **kwargs):
     base.ACTIVE_REQUEST = request
     key = kwargs.pop('__jestit_key__', None)
     request.DATA = parse_request_data(request)
+    if "group" in request.DATA:
+        request.group = modules.get_model_instance("authit", "Group", int(request.DATA.group))
     logger.info(request.DATA)
     if key in URLPATTERN_METHODS:
         return dispatch_error_handler(URLPATTERN_METHODS[key])(request, *args, **kwargs)

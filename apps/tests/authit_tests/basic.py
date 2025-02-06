@@ -109,12 +109,38 @@ def test_admin_add_group(opts):
     opts.group_id = resp.response.data.id
 
 
+@th.unit_test("user_cannot_list_group")
+def test_user_cannot_list_group(opts):
+    resp = opts.client.login(TEST_USER, TEST_PWORD)
+    assert opts.client.is_authenticated, "authentication failed"
+    resp = opts.client.get("/api/authit/group", params=dict(id=opts.group_id))
+    assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
+    assert resp.response.count == 0, "count is not 0"
+    # groups = resp.response.data
+    # for group in groups:
+    #     if group.id == opts.group_id:
+    #         assert group.name == opts.group_id, f"Expected group name was {opts.group_id}, but got {group.name}"
+    #         break
+    # else:
+    #     assert False, f"Group with id {opts.group_id} not found in the list"
+
+
+
 @th.unit_test("add_group_member")
 def test_add_group_member(opts):
-    # resp = opts.client.login(ADMIN_USER, ADMIN_PWORD)
+    resp = opts.client.login(ADMIN_USER, ADMIN_PWORD)
     assert opts.client.is_authenticated, "authentication failed"
     resp = opts.client.post("/api/authit/group/member", dict(user=opts.user_id, group=opts.group_id))
     assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
     assert resp.response.data.user.id == opts.user_id, f"user: {resp.response.data.user.id }"
     assert resp.response.data.group.id == opts.group_id, f"group: {resp.response.data.group.id }"
     opts.member_id = resp.response.data.id
+
+
+@th.unit_test("user_can_list_group")
+def test_user_can_list_group(opts):
+    resp = opts.client.login(TEST_USER, TEST_PWORD)
+    assert opts.client.is_authenticated, "authentication failed"
+    resp = opts.client.get("/api/authit/group", params=dict(id=opts.group_id))
+    assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
+    assert resp.response.count == 1, "size is not 1"

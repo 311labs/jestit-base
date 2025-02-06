@@ -52,7 +52,7 @@ class GroupMember(models.Model, JestitBase):
         return f"{self.user.username}@{self.group.name}"
 
     def can_change_permission(self, perm, value, request):
-        if request.user.has_permission("manage_users"):
+        if request.user.has_permission(["manage_groups", "manage_users"]):
             return True
         req_member = self.group.get_member_for_user(request.user)
         if req_member is not None:

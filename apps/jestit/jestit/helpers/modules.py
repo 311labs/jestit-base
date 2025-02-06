@@ -66,3 +66,14 @@ def get_root_module(func):
     root_module = module_name.split('.')[0]
 
     return sys.modules.get(root_module, None)  # Return the module object or None
+
+
+def get_model(app_name, model_name):
+    # Import the module containing the models
+    models_module = importlib.import_module(f"{app_name}.models")
+    # Get the model class from the module
+    model = getattr(models_module, model_name)
+    return model
+
+def get_model_instance(app_name, model_name, pk):
+    return get_model(app_name, model_name).objects.filter(id=pk).last()

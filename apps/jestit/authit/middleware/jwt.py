@@ -25,3 +25,4 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
                 return JsonResponse({'error': 'Token expired'}, status=401)
             return JsonResponse({'error': 'Token has invalid signature'}, status=401)
         request.user = user
+        request.group = None

@@ -107,20 +107,21 @@ class GraphSerializer:
         # logger.info(data)
         return data
 
-    def to_json(self):
+    def to_json(self, **kwargs):
         """Returns JSON output of the serialized data."""
         data = self.serialize()
         if self.many:
-            data = dict(data=data, status=True, size=len(data),
-                count=self.qset.count(), graph=self.graph)
+            data = dict(data=data, status=True,
+                size=len(data), graph=self.graph)
         else:
             data = dict(data=data, status=True, graph=self.graph)
+        data.update(dict(kwargs))
         logger.info(data)
         out = ujson.dumps(data)
         # logger.info("RAW", out)
         return out
 
-    def to_response(self, request):
+    def to_response(self, request, **kwargs):
         """
         Determines the response format based on the client's Accept header.
         """
@@ -147,7 +148,7 @@ class GraphSerializer:
             """
             return HttpResponse(response_data, content_type='text/html')
         else:
-            return HttpResponse(self.to_json(), content_type='application/json')
+            return HttpResponse(self.to_json(**kwargs), content_type='application/json')
 
     def _colorize_json(self, json_data):
         """Returns JSON data with HTML span wrappers for colors."""

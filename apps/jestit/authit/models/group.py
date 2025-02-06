@@ -1,7 +1,6 @@
 from django.db import models
 from jestit.models import JestitBase
 
-
 class Group(models.Model, JestitBase):
     """
     Group model.
@@ -56,6 +55,19 @@ class Group(models.Model, JestitBase):
     def __str__(self):
         return self.name
 
-    def get_member_for_user(self, user):
+    def has_permission(self, user):
         from authit.models.member import GroupMember
         return GroupMember.objects.filter(user=user).last()
+
+    def member_has_permission(self, user, perms):
+        ms = self.has_permission(user)
+        if ms is None:
+            return user.has_permission(perms)
+        return ms.has_permission(perms)
+
+    @classmethod
+    def on_rest_handle_list(cls, request):
+        if cls.rest_check_permission(request, "VIEW_PERMS"):
+            return cls.on_rest_list(request)
+        group_ids = request.user.members.values_list('group__id', flat=True)
+        return cls.on_rest_list(request, cls.objects.filter(id__in=group_ids))

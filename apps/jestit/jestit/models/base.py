@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 import objict
 from jestit.helpers import logit
+from jestit.helpers import modules
 from jestit.decorators import http as dec_http
 
 logger = logit.get_logger("debug", "debug.log")
@@ -86,6 +87,10 @@ class JestitBase:
             if "owner" in perms and getattr(instance, "user", None) is not None:
                 if instance.user.id == request.user.id:
                     return True
+        if request.group and hasattr(cls, "group"):
+            # lets check our group member permissions
+            # this will now force any queries to include the group
+            return request.group.member_has_permission(request.user, perms)
         return request.user.has_permission(perms)
 
     @classmethod
@@ -113,32 +118,48 @@ class JestitBase:
         return cls.rest_error_response(request, 403, error=f"DELETE permission denied: {cls.__name__}")
 
     @classmethod
+    def on_rest_handle_list(cls, request):
+        if cls.rest_check_permission(request, "VIEW_PERMS"):
+            return cls.on_rest_list(request)
+        return cls.rest_error_response(request, 403, error=f"GET permission denied: {cls.__name__}")
+
+    @classmethod
+    def on_rest_handle_create(cls, request):
+        if cls.rest_check_permission(request, ["SAVE_PERMS", "VIEW_PERMS"]):
+            instance = cls()
+            return instance.on_rest_save(request)
+        return cls.rest_error_response(request, 403, error=f"CREATE permission denied: {cls.__name__}")
+
+    @classmethod
     def on_handle_list_or_create(cls, request):
         """Handles listing (GET without pk) and creating (POST/PUT without pk)."""
         if request.method == 'GET':
-            if cls.rest_check_permission(request, "VIEW_PERMS"):
-                return cls.on_rest_list(request)
-            return cls.rest_error_response(request, 403, error=f"GET permission denied: {cls.__name__}")
-
+            return cls.on_rest_handle_list(request)
         elif request.method in ['POST', 'PUT']:
-            if cls.rest_check_permission(request, ["SAVE_PERMS", "VIEW_PERMS"]):
-                instance = cls()
-                return instance.on_rest_save(request)
-            return cls.rest_error_response(request, 403, error=f"CREATE permission denied: {cls.__name__}")
+            return cls.on_rest_handle_create(request)
 
     @classmethod
-    def on_rest_list(cls, request):
+    def on_rest_list(cls, request, queryset=None):
         """
-        Handles listing objects with filtering and sorting.
+        Handles listing objects with filtering, sorting, and pagination.
         """
-        queryset = cls.objects.all()
+        if queryset is None:
+            queryset = cls.objects.all()
+        if request.group is not None and hasattr(cls, "group"):
+            if "group" in request.DATA:
+                del request.DATA["group"]
+            queryset = queryset.filter(group=request.group)
         queryset = cls.on_rest_list_filter(request, queryset)
         queryset = cls.on_rest_list_sort(request, queryset)
-        print(request.DATA.toJSON(as_string=True))
-        graph = request.DATA.get("graph", "list")
-        serializer = GraphSerializer(queryset, graph=graph, many=True)
-        return serializer.to_response(request)
 
+        # Implement pagination
+        page_size = request.DATA.get("size", 10)
+        page_start = request.DATA.get("start", 0)
+        page_end = page_start+page_size
+        paged_queryset = queryset[page_start:page_end]
+        graph = request.DATA.get("graph", "list")
+        serializer = GraphSerializer(paged_queryset, graph=graph, many=True)
+        return serializer.to_response(request, count=queryset.count(), page=page_start, size=page_size)
 
     @classmethod
     def on_rest_list_filter(cls, request, queryset):
