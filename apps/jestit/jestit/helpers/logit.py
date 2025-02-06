@@ -158,35 +158,48 @@ class ColorFormatter(logging.Formatter):
 # Utility for Pretty Logging
 class PrettyLogger:
     @staticmethod
-    def pretty_format(data, indent=4, max_length=500000) -> str:
+    def pretty_format(data, max_length=500000) -> str:
         """Formats complex data structures for logging."""
         output = StringIO()
-        PrettyLogger._recursive_format(data, output, indent, max_length)
+        PrettyLogger._recursive_format(data, output, 0, max_length)
         return output.getvalue()
 
     @staticmethod
-    def _recursive_format(data, output, indent, max_length, line_count=0):
-        """Recursive function to pretty-print dictionaries and lists."""
-        if isinstance(data, dict):
-            data = OrderedDict(sorted(data.items()))
+    def _recursive_format(data, output=sys.stdout, indent=0, max_length=80):
+        """Recursive function to pretty-print dictionaries and lists with proper indentation and colors."""
 
-        if isinstance(data, list):
-            output.write("[")
-            for item in data:
-                PrettyLogger._recursive_format(item, output, indent + 2, max_length, line_count)
-            output.write("]")
-        elif isinstance(data, dict):
-            output.write("{")
-            for key, value in data.items():
-                output.write(f"\n{' ' * indent}\"{key}\": ")
-                PrettyLogger._recursive_format(value, output, indent + 2, max_length, line_count)
-            output.write("\n" + " " * (indent - 2) + "}")
+        base_indent = " " * indent  # Current level indentation
+        next_indent = " " * (indent + 2)  # Indentation for nested structures
+
+        if isinstance(data, dict):
+            data = OrderedDict(sorted(data.items()))  # Ensure ordered keys
+            output.write("{\n")  # Open dict at current indent
+            last_index = len(data) - 1
+            for i, (key, value) in enumerate(data.items()):
+                output.write(next_indent + f"\033[34m\"{key}\"\033[0m: ")
+                PrettyLogger._recursive_format(value, output, indent + 2, max_length)
+                if i != last_index:
+                    output.write(",")  # Add comma for all but last key-value pair
+                output.write("\n")
+            if indent == 0:
+                base_indent = ""
+            output.write(base_indent + "}")  # Close dict at the correct indent
+        elif isinstance(data, list):
+            output.write("[\n")  # Open list at correct indent
+            last_index = len(data) - 1
+            for i, item in enumerate(data):
+                output.write(next_indent)
+                PrettyLogger._recursive_format(item, output, indent + 2, max_length)
+                if i != last_index:
+                    output.write(",")  # Add comma for all but last item
+                output.write("\n")
+            output.write(base_indent + "]")  # Close list at correct indent
         elif isinstance(data, Decimal):
-            output.write(str(data))
+            output.write(f"\033[32m{str(data)}\033[0m")  # Green for Decimal
         elif isinstance(data, str):
-            output.write(f"\"{data}\"")
+            output.write(f"\033[31m\"{data}\"\033[0m")  # Red for strings
         else:
-            output.write(str(data))
+            output.write(f"\033[33m{str(data)}\033[0m")  # Yellow for other types
 
     @staticmethod
     def log_json(data, logger=None):

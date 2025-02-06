@@ -1,6 +1,7 @@
 from django.db import models as dm
 from jestit.models import JestitBase
 
+
 class TODO(dm.Model, JestitBase):
     created = dm.DateTimeField(auto_now_add=True)
     modified = dm.DateTimeField(auto_now=True)
@@ -8,8 +9,31 @@ class TODO(dm.Model, JestitBase):
     name = dm.CharField(max_length=200, default=None)
     kind = dm.CharField(max_length=200, default=None)
     description = dm.TextField(default=None)
+    note = dm.ForeignKey(
+        "example.Note", null=True, default=None,
+        on_delete=dm.CASCADE)
 
-
+    class RestMeta:
+        GRAPHS = {
+            "basic": {
+                "fields": [
+                    'id',
+                    'name',
+                    'description'
+                ]
+            },
+            "default": {
+                "fields": [
+                    'id',
+                    'name',
+                    'kind',
+                    'description'
+                ],
+                "graphs": {
+                    "note": "basic"
+                }
+            }
+        }
 
 class Note(dm.Model, JestitBase):
     created = dm.DateTimeField(auto_now_add=True)
@@ -32,6 +56,7 @@ class Note(dm.Model, JestitBase):
             "basic": {
                 "fields": [
                     'id',
+                    'name',
                     'kind',
                     'description'
                 ]
@@ -40,6 +65,9 @@ class Note(dm.Model, JestitBase):
                 "fields": [
                     'id',
                     'name',
+                    'kind',
+                    'description',
+                    'metadata'
                 ]
             }
         }

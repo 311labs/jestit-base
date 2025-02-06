@@ -2,19 +2,19 @@ from django.db import models
 from jestit.models import JestitBase
 
 
-class Group(models.Model, JestitBase):
+class GroupMember(models.Model, JestitBase):
     """
-    Group model.
+    A member of a group
     """
     created = models.DateTimeField(auto_now_add=True, editable=False)
     modified = models.DateTimeField(auto_now=True, db_index=True)
-
-    name = models.CharField(max_length=200)
+    user = models.ForeignKey(
+        "authit.User",related_name="members",
+        on_delete=models.CASCADE)
+    group = models.ForeignKey(
+        "authit.Group", related_name="members",
+        on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True, db_index=True)
-    kind = models.CharField(max_length=80, default="group", db_index=True)
-
-    parent = models.ForeignKey("authit.Group", null=True, related_name="groups",
-        default=None, on_delete=models.CASCADE)
     # JSON-based permissions field
     permissions = models.JSONField(default=dict, blank=True)
     # JSON-based metadata field
@@ -34,8 +34,8 @@ class Group(models.Model, JestitBase):
                     'created',
                     'modified',
                     'is_active',
-                    'kind',
-                    'parent',
+                    'group',
+                    'user',
                     'permissions',
                     'metadata'
                 ]
@@ -43,4 +43,4 @@ class Group(models.Model, JestitBase):
         }
 
     def __str__(self):
-        return self.name
+        return f"{self.user.username}@{self.group.name}"

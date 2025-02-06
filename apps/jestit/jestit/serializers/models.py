@@ -36,24 +36,29 @@ class GraphSerializer:
         Serializes a single model instance or a QuerySet.
         """
         if self.many:
-            out = [self._serialize_instance(obj) for obj in self.instance]
-            return dict(data=out, status=True, size=len(out), count=self.qset.count())
-        return dict(data=self._serialize_instance(self.instance), status=True)
+            return [self._serialize_instance(obj) for obj in self.instance]
+        return self._serialize_instance(self.instance)
 
     def _serialize_instance(self, obj):
         """
         Serializes a single model instance based on `RestMeta.GRAPHS`.
         """
         if not hasattr(obj, "RestMeta") or not hasattr(obj.RestMeta, "GRAPHS"):
+            logger.warning("RestMeta not found")
             return self._model_to_dict_custom(obj, fields=[field.name for field in obj._meta.fields])
 
         graph_config = obj.RestMeta.GRAPHS.get(self.graph)
+        if self.graph != "default":
+            self.graph = "default"
+            graph_config = obj.RestMeta.GRAPHS.get(self.graph)
 
         # If graph is not defined or None, assume all fields should be included
         if graph_config is None:
+            logger.warning(f"graph '{self.graph}' not found for {obj.__class__.__name__}")
             return self._model_to_dict_custom(obj, fields=[field.name for field in obj._meta.fields])
-
-        data = self._model_to_dict_custom(obj)  # Convert normal fields
+        else:
+            logger.info(self.graph, graph_config)
+        data = self._model_to_dict_custom(obj, fields=graph_config.get("fields", None))  # Convert normal fields
 
         # Process extra fields (methods, metadata, etc.)
         extra_fields = graph_config.get("extra", [])
@@ -62,7 +67,6 @@ class GraphSerializer:
                 method_name, alias = field
             else:
                 method_name, alias = field, field
-
             if hasattr(obj, method_name):
                 attr = getattr(obj, method_name)
                 data[alias] = attr() if callable(attr) else attr
@@ -71,7 +75,6 @@ class GraphSerializer:
         related_graphs = graph_config.get("graphs", {})
         for related_field, sub_graph in related_graphs.items():
             related_obj = getattr(obj, related_field, None)
-
             if related_obj is not None:
                 # Determine if the field is a ForeignKey or OneToOneField
                 field_obj = obj._meta.get_field(related_field)
@@ -87,7 +90,7 @@ class GraphSerializer:
         """
         data = {}
         for field in obj._meta.fields:
-            logger.info(field)
+            # logger.info(field, type(field), isinstance(field, (ForeignKey, OneToOneField)))
             if fields and field.name not in fields:
                 continue
 
@@ -96,17 +99,24 @@ class GraphSerializer:
             # Handle DateTimeField serialization to epoch
             if isinstance(field_value, datetime):
                 data[field.name] = int(field_value.timestamp())
+            elif field_value is not None and isinstance(field, (ForeignKey, OneToOneField)):
+                data[field.name] = field_value.id
             else:
                 data[field.name] = field_value
-        logger.info(data)
+        # logger.info(data)
         return data
 
     def to_json(self):
         """Returns JSON output of the serialized data."""
-        dd = self.serialize()
-        logger.info(dd)
-        out = ujson.dumps(dd)
-        logger.info("RAW", out)
+        data = self.serialize()
+        if self.many:
+            data = dict(data=data, status=True, size=len(data),
+                count=self.qset.count(), graph=self.graph)
+        else:
+            data = dict(data=data, status=True, graph=self.graph)
+        logger.info(data)
+        out = ujson.dumps(data)
+        # logger.info("RAW", out)
         return out
 
     def to_response(self, request):

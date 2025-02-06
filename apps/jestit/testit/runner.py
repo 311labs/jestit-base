@@ -101,7 +101,7 @@ def run_module_tests(opts, module_name, test_name):
     if not module:
         return
 
-    opts.client = testit.client.RestClient(opts.host, logger=logit.get_logger("testit", "testit.log"))
+    opts.client = testit.client.RestClient(opts.host, logger=opts.logger)
     test_key = f"{module_name}.{test_name}"
     logit.color_print(f"\nRUNNING TEST: {test_key}", logit.ConsoleLogger.BLUE)
     started = time.time()
@@ -165,6 +165,7 @@ def main(opts):
         print("------------------------")
         return
 
+    opts.logger = logit.get_logger("testit", "testit.log")
     if opts.module and opts.test:
         run_module_tests(opts.module, opts.test)
     elif opts.module:

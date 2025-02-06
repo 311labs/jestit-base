@@ -1,4 +1,5 @@
 import requests
+import base64
 from objict import objict
 
 
@@ -19,24 +20,25 @@ class RestClient:
         self.access_token = None
         self.is_authenticated = False
         self.bearer = "bearer"
-        self.token = None
+        self.access_token = None
 
     def login(self, username, password):
         self.logout()
         resp = self.post("/api/authit/login", dict(username=username, password=password))
         if resp.response.data and resp.response.data.access_token:
             self.is_authenticated = True
-            self.token = resp.response.data.access_token
+            self.access_token = resp.response.data.access_token
+            junk, self.jwt_data = decode_jwt(self.access_token)
         return self.is_authenticated
 
     def logout(self):
         self.is_authenticated = False
         self.bearer = "bearer"
-        self.token = None
+        self.access_token = None
 
     def get_headers(self):
         if self.is_authenticated:
-            return dict(Authorization=f"{self.bearer} {self.token}")
+            return dict(Authorization=f"{self.bearer} {self.access_token}")
         return {}
 
     def _make_request(self, method, path, **kwargs):
@@ -128,3 +130,18 @@ class RestClient:
             dict: A dictionary containing the response data and status code.
         """
         return self._make_request('DELETE', path, **kwargs)
+
+
+
+def base64_decode(data):
+    """Decode base64-encoded data."""
+    padding = '=' * (-len(data) % 4)
+    return base64.urlsafe_b64decode(data + padding)
+
+
+def decode_jwt(token):
+    """Decode a JWT token using base64 decoding."""
+    headers, payload, signature = token.split('.')
+    decoded_headers = objict.fromJSON(base64_decode(headers))
+    decoded_payload = objict.fromJSON(base64_decode(payload))
+    return decoded_headers, decoded_payload

@@ -1,5 +1,6 @@
 import sys
 import traceback
+from jestit.models import base
 from jestit.helpers.settings import settings
 from jestit.helpers import modules as jm
 from jestit.helpers import logit
@@ -23,6 +24,7 @@ def dispatcher(request, *args, **kwargs):
     """
     Dispatches incoming requests to the appropriate registered URL method.
     """
+    base.ACTIVE_REQUEST = request
     key = kwargs.pop('__jestit_key__', None)
     request.DATA = parse_request_data(request)
     logger.info(request.DATA)

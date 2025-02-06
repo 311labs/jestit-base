@@ -4,25 +4,19 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 import objict
 from jestit.helpers import logit
+from jestit.decorators import http as dec_http
 
 logger = logit.get_logger("debug", "debug.log")
-
+ACTIVE_REQUEST = None
 
 class JestitBase:
     """
     Base model class for REST operations with GraphSerializer integration.
     """
 
-    @classmethod
-    def rest_check_permission(cls, request, perms):
-        """
-        Check if request user has one of the required permissions.
-        """
-        if perms is None or len(perms) == 0:
-            return True
-        if request.user is None or not request.user.is_authenticated:
-            return False
-        return request.user.has_permission(perms)
+    @property
+    def active_request(self):
+        return ACTIVE_REQUEST
 
     @classmethod
     def get_rest_meta_prop(cls, name, default=None):
@@ -50,38 +44,87 @@ class JestitBase:
         Handles REST requests dynamically based on HTTP method.
         """
         if pk:
-            try:
-                instance = cls.objects.get(pk=pk)
-            except ObjectDoesNotExist:
-                return cls.rest_error_response(request, 404, error=f"{cls.__name__} not found")
+            instance = cls.get_instance_or_404(pk)
+            if isinstance(instance, dict):  # If it's a response, return early
+                return instance
 
             if request.method == 'GET':
-                if cls.rest_check_permission(request, cls.get_rest_meta_prop("VIEW_PERMS", [])):
-                    return instance.on_rest_get(request)
-                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+                return cls.on_rest_handle_get(request, instance)
 
             elif request.method in ['POST', 'PUT']:
-                if cls.rest_check_permission(request, cls.get_rest_meta_prop(["SAVE_PERMS", "VIEW_PERMS"], [])):
-                    return instance.on_rest_save(request)
-                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+                return cls.on_rest_handle_save(request, instance)
 
             elif request.method == 'DELETE':
-                if not cls.get_rest_meta_prop("CAN_DELETE", False):
-                    return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
-                if cls.rest_check_permission(request, cls.get_rest_meta_prop(["DELETE_PERMS", "SAVE_PERMS", "VIEW_PERMS"], [])):
-                    return instance.on_rest_delete(request)
-                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+                return cls.on_rest_handle_delete(request, instance)
         else:
-            if request.method == 'GET':
-                if cls.rest_check_permission(request, cls.get_rest_meta_prop("VIEW_PERMS", [])):
-                    return cls.on_rest_list(request)
-                return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
-            elif request.method in ['POST', 'PUT']:
-                if cls.rest_check_permission(request, cls.get_rest_meta_prop(["SAVE_PERMS", "VIEW_PERMS"], [])):
-                    instance = cls()
-                    return instance.on_rest_save(request)
-                return cls.rest_error_response(request, 403, error=f"CREATE permission denied: {cls.__name__}")
+            return cls.on_handle_list_or_create(request)
+
         return cls.rest_error_response(request, 500, error=f"{cls.__name__} not found")
+
+    @classmethod
+    def get_instance_or_404(cls, pk):
+        """Helper method to get an instance or return a 404 response."""
+        try:
+            return cls.objects.get(pk=pk)
+        except ObjectDoesNotExist:
+            return cls.rest_error_response(None, 404, error=f"{cls.__name__} not found")
+
+    @classmethod
+    def rest_check_permission(cls, request, permission_keys, instance=None):
+        """
+        Checks permissions using instance-level `has_permission` if available, otherwise falls back to `cls.rest_check_permission`.
+        """
+        perms = cls.get_rest_meta_prop(permission_keys, [])
+        if perms is None or len(perms) == 0:
+            return True
+        if "all" not in perms:
+            if request.user is None or not request.user.is_authenticated:
+                return False
+        if instance is not None:
+            if hasattr(instance, "on_rest_check_permission"):
+                return instance.on_rest_check_permission(perms, request)
+            if "owner" in perms and getattr(instance, "user", None) is not None:
+                if instance.user.id == request.user.id:
+                    return True
+        return request.user.has_permission(perms)
+
+    @classmethod
+    def on_rest_handle_get(cls, request, instance):
+        """Handles GET requests with permission checks."""
+        if cls.rest_check_permission(request, "VIEW_PERMS", instance):
+            return instance.on_rest_get(request)
+        return cls.rest_error_response(request, 403, error=f"GET permission denied: {cls.__name__}")
+
+    @classmethod
+    def on_rest_handle_save(cls, request, instance):
+        """Handles POST and PUT requests with permission checks."""
+        if cls.rest_check_permission(request, ["SAVE_PERMS", "VIEW_PERMS"], instance):
+            return instance.on_rest_save(request)
+        return cls.rest_error_response(request, 403, error=f"{request.method} permission denied: {cls.__name__}")
+
+    @classmethod
+    def on_rest_handle_delete(cls, request, instance):
+        """Handles DELETE requests with permission checks."""
+        if not cls.get_rest_meta_prop("CAN_DELETE", False):
+            return cls.rest_error_response(request, 403, error=f"DELETE not allowed: {cls.__name__}")
+
+        if cls.rest_check_permission(request, ["DELETE_PERMS", "SAVE_PERMS", "VIEW_PERMS"], instance):
+            return instance.on_rest_delete(request)
+        return cls.rest_error_response(request, 403, error=f"DELETE permission denied: {cls.__name__}")
+
+    @classmethod
+    def on_handle_list_or_create(cls, request):
+        """Handles listing (GET without pk) and creating (POST/PUT without pk)."""
+        if request.method == 'GET':
+            if cls.rest_check_permission(request, "VIEW_PERMS"):
+                return cls.on_rest_list(request)
+            return cls.rest_error_response(request, 403, error=f"GET permission denied: {cls.__name__}")
+
+        elif request.method in ['POST', 'PUT']:
+            if cls.rest_check_permission(request, ["SAVE_PERMS", "VIEW_PERMS"]):
+                instance = cls()
+                return instance.on_rest_save(request)
+            return cls.rest_error_response(request, 403, error=f"CREATE permission denied: {cls.__name__}")
 
     @classmethod
     def on_rest_list(cls, request):
@@ -96,16 +139,21 @@ class JestitBase:
         serializer = GraphSerializer(queryset, graph=graph, many=True)
         return serializer.to_response(request)
 
+
     @classmethod
     def on_rest_list_filter(cls, request, queryset):
         """
-        Applies filtering logic based on request parameters.
+        Applies filtering logic based on request parameters, including foreign key fields.
         """
         filters = {}
         for key, value in request.GET.items():
-            if hasattr(cls, key):
+            # Split key to check for foreign key relationships
+            key_parts = key.split('__')
+            field_name = key_parts[0]
+            if hasattr(cls, field_name) or cls._meta.get_field(field_name).is_relation:
                 filters[key] = value
         return queryset.filter(**filters)
+
 
     @classmethod
     def on_rest_list_sort(cls, request, queryset):
@@ -141,7 +189,7 @@ class JestitBase:
                 field_value = data_dict[field_name]
                 set_field_method = getattr(self, f'set_{field_name}', None)
                 if callable(set_field_method):
-                    set_field_method(field_value)
+                    set_field_method(field_value, request)
                 elif field.is_relation and hasattr(field, 'related_model'):
                     related_model = field.related_model
                     try:
