@@ -2,6 +2,11 @@
 ## v0.1.0 - February 03, 2025
 ## v0.1.0 - February 05, 2025
 
+ added more security around permissions
+
+
+## v0.1.0 - February 05, 2025
+
  cleanup of permissions, adding user tests
 
 

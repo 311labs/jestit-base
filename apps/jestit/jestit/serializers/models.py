@@ -48,7 +48,7 @@ class GraphSerializer:
             return self._model_to_dict_custom(obj, fields=[field.name for field in obj._meta.fields])
 
         graph_config = obj.RestMeta.GRAPHS.get(self.graph)
-        if self.graph != "default":
+        if graph_config is None and self.graph != "default":
             self.graph = "default"
             graph_config = obj.RestMeta.GRAPHS.get(self.graph)
 
@@ -80,6 +80,7 @@ class GraphSerializer:
                 field_obj = obj._meta.get_field(related_field)
                 if isinstance(field_obj, (ForeignKey, OneToOneField)):
                     # Serialize related model using its corresponding graph
+                    logger.warning(f"graph '{sub_graph}' for {related_obj.__class__.__name__}")
                     data[related_field] = GraphSerializer(related_obj, graph=sub_graph).serialize()
 
         return data
