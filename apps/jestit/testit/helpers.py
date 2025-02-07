@@ -17,8 +17,9 @@ INDENT = "    "
 class TestitAbort(Exception):
     pass
 
+
 # Test Decorator
-def unit_test(name):
+def unit_test(name=None):
     """
     Decorator to track unit test execution.
 
@@ -31,7 +32,12 @@ def unit_test(name):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             TEST_RUN.total += 1
-            test_name = name or kwargs.get("test_name", func.__name__)
+            if name:
+                test_name = name
+            else:
+                test_name = kwargs.get("test_name", func.__name__)
+                if test_name.startswith("test_"):
+                    test_name = test_name[5:]
 
             # Print test start message
             logit.color_print(f"{INDENT}{test_name.ljust(60, '.')}", logit.ConsoleLogger.YELLOW, end="")

@@ -5,6 +5,7 @@ from authit.models.user import User
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):
     def process_request(self, request):
+        request.group = None
         token = request.META.get('HTTP_AUTHORIZATION', None)
         if token is None:
             return
@@ -25,4 +26,3 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
                 return JsonResponse({'error': 'Token expired'}, status=401)
             return JsonResponse({'error': 'Token has invalid signature'}, status=401)
         request.user = user
-        request.group = None

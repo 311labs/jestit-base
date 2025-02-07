@@ -1,6 +1,8 @@
 from base64 import b64encode, b64decode
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+import hashlib
+import hmac
 import json
 
 def encrypt(data, key):
@@ -44,8 +46,31 @@ def decrypt(enc_data_b64, key):
     decrypted_data = unpad(decrypted_padded_data, AES.block_size)
 
     # Try to decode the decrypted data as UTF-8
+    decrypted_data_str = decrypted_data.decode('utf-8')
     try:
-        decrypted_data_str = decrypted_data.decode('utf-8')
         return json.loads(decrypted_data_str)
     except json.JSONDecodeError:
         return decrypted_data_str
+
+
+def hash_to_hex(input_string, salt):
+    if not isinstance(input_string, str):
+        raise ValueError("Input must be a string")
+    # Create a new SHA-256 hasher
+    hasher = hashlib.sha256()
+    # Update the hasher with the input string encoded to bytes
+    hasher.update(input_string.encode('utf-8'))
+    # Return the hexadecimal representation of the hash
+    return hasher.hexdigest()
+
+
+def derive_salt(digits, secret_key):
+    """Derives a salt from the last 8 digits of the DIGITs using HMAC."""
+    last_8_digits = digits[-8:]
+    return hmac.new(secret_key, last_8_digits.encode(), hashlib.sha256).digest()[:16]  # Use first 16 bytes
+
+def hash_digits(digits, secret_key):
+    """Hashes the PAN using a derived salt without storing it."""
+    salt = derive_salt(digits, secret_key)
+    hash_obj = hashlib.sha256(salt + digits.encode())
+    return hash_obj.hexdigest()

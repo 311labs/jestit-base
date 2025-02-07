@@ -32,7 +32,8 @@ def test_get_todo_item_graph(opts):
     resp = opts.client.get(f"/api/example/todo/{opts.todo_pk}", params=dict(graph="basic"))
     assert resp.status_code == 200
     assert resp.response.data.id == opts.todo_pk
-    assert resp.response.data.kind == "ticket", f"kind: {resp.response.data.kind }"
+    assert resp.response.data.name is not None, f"name: {resp.response.data.name }"
+    assert resp.response.data.kind == None, f"kind: {resp.response.data.kind }"
 
 
 @th.unit_test("update_todo_item")
@@ -48,8 +49,8 @@ def test_update_todo_item(opts):
 def test_list_todo(opts):
     resp = opts.client.get("/api/example/todo", params=dict(id=opts.todo_pk))
     assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
-    assert resp.response.size == 1
-    assert resp.response.count == 1
+    assert resp.response.size == 10, f"size is not 10 {resp.response.size}"
+    assert resp.response.count == 1, f"count is not 1 {resp.response.count}"
     assert isinstance(resp.response.data, list)
 
 
@@ -116,10 +117,10 @@ def test_remove_metadata(opts):
 
 @th.unit_test("list_notes")
 def test_list_notes(opts):
-    resp = opts.client.get("/api/example/note", params=dict(id=opts.note_pk))
+    resp = opts.client.get("/api/example/note", params=dict(id=opts.note_pk, size=5))
     assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
-    assert resp.response.size == 1
-    assert resp.response.count == 1
+    assert resp.response.size == 5, f"size is not 5 {resp.response.size}"
+    assert resp.response.count == 1, f"count is not 1 {resp.response.count}"
     assert isinstance(resp.response.data, list)
 
 
@@ -136,9 +137,9 @@ def test_add_note_to_todo(opts):
 
 @th.unit_test("todo_by_note_id")
 def test_todo_by_note_id(opts):
-    resp = opts.client.get(f"/api/example/todo", params=dict(note__id=opts.note_pk))
+    resp = opts.client.get(f"/api/example/todo", params=dict(note__id=opts.note_pk, size=5))
     assert resp.status_code == 200, f"Expected status_code is 200 but got {resp.status_code}"
-    assert resp.response.size == 1
+    assert resp.response.size == 5
     assert resp.response.count == 1
     assert isinstance(resp.response.data, list)
     todo = resp.response.data[0]

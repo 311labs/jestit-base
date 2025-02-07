@@ -44,6 +44,7 @@ class JestitBase:
         """
         Handles REST requests dynamically based on HTTP method.
         """
+        cls.__rest_field_names__ = [f.name for f in cls._meta.get_fields()]
         if pk:
             instance = cls.get_instance_or_404(pk)
             if isinstance(instance, dict):  # If it's a response, return early
@@ -153,8 +154,8 @@ class JestitBase:
         queryset = cls.on_rest_list_sort(request, queryset)
 
         # Implement pagination
-        page_size = request.DATA.get("size", 10)
-        page_start = request.DATA.get("start", 0)
+        page_size = request.DATA.get_typed("size", 10, int)
+        page_start = request.DATA.get_typed("start", 0, int)
         page_end = page_start+page_size
         paged_queryset = queryset[page_start:page_end]
         graph = request.DATA.get("graph", "list")
@@ -171,8 +172,11 @@ class JestitBase:
             # Split key to check for foreign key relationships
             key_parts = key.split('__')
             field_name = key_parts[0]
-            if hasattr(cls, field_name) or cls._meta.get_field(field_name).is_relation:
+            if hasattr(cls, field_name):
                 filters[key] = value
+            elif field_name in cls.__rest_field_names__ and cls._meta.get_field(field_name).is_relation:
+                filters[key] = value
+        logger.info("filters", filters)
         return queryset.filter(**filters)
 
 
@@ -181,8 +185,8 @@ class JestitBase:
         """
         Applies sorting to the queryset.
         """
-        sort_field = request.GET.get("sort", "-id")
-        if sort_field.lstrip('-') in [f.name for f in cls._meta.get_fields()]:
+        sort_field = request.DATA.pop("sort", "-id")
+        if sort_field.lstrip('-') in cls.__rest_field_names__:
             return queryset.order_by(sort_field)
         return queryset
 
